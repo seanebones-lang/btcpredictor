@@ -1,1 +1,60 @@
-**/__pycache__
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data
+*.csv
+*.parquet
+*.h5
+*.pkl
+data/
+
+# Models
+models/
+*.h5
+*.keras
+*.pkl
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Redis
+*.rdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Docker
+.docker/
+
+# Test coverage
+htmlcov/
+.coverage
+coverage.xml
