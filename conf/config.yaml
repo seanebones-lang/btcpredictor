@@ -1,0 +1,157 @@
+# BTC Predictor Configuration
+# Use with: python -m btc_predictor.predictor_async --config-name=config
+
+# ============================================================
+# Data Sources
+# ============================================================
+data_sources:
+  coingecko:
+    base_url: "https://api.coingecko.com/api/v3"
+    rate_limit: 50  # requests/minute
+    timeout: 15
+  
+  binance:
+    base_url: "https://api.binance.com/api/v3"
+    futures_url: "https://fapi.binance.com/fapi/v1"
+    rate_limit: 1200  # requests/minute
+    timeout: 15
+  
+  redis:
+    url: "redis://localhost:6379/0"
+    cache_ttl_seconds: 60
+    cache_ttl_historical: 3600
+
+# ============================================================
+# Model Configuration
+# ============================================================
+model:
+  # LSTM settings
+  lstm:
+    sequence_length: 96      # 24 hours of 15-min bars
+    n_features: 12
+    units: [128, 64, 32]
+    dropout: 0.2
+    recurrent_dropout: 0.1
+    learning_rate: 0.001
+    epochs: 50
+    batch_size: 32
+    validation_split: 0.2
+    early_stopping_patience: 10
+    n_ensemble: 3
+  
+  # Prophet settings
+  prophet:
+    changepoint_prior_scale: 0.05
+    seasonality_prior_scale: 10.0
+    holidays_prior_scale: 10.0
+    daily_seasonality: true
+    weekly_seasonality: true
+    yearly_seasonality: false
+    interval_width: 0.90
+  
+  # Ensemble weights
+  ensemble:
+    lstm_weight: 0.6
+    prophet_weight: 0.4
+    use_conformal: true
+    conformal_alpha: 0.10
+
+# ============================================================
+# Feature Engineering
+# ============================================================
+features:
+  technical:
+    - sma_20
+    - sma_50
+    - ema_12
+    - ema_26
+    - rsi_14
+    - macd
+    - bollinger_bands
+    - atr_14
+    - obv
+    - vwap
+  
+  momentum_windows:
+    - 1    # 15 min
+    - 4    # 1 hour
+    - 16   # 4 hours
+    - 96   # 24 hours
+  
+  enriched:
+    funding_rate: true
+    open_interest: true
+    liquidations: true
+    order_book_imbalance: false  # Requires WebSocket
+
+# ============================================================
+# API Configuration
+# ============================================================
+api:
+  host: "0.0.0.0"
+  port: 8000
+  rate_limit: "60/minute"
+  cors_origins:
+    - "*"
+  auth:
+    enabled: true
+    api_key_env: "API_KEY"
+
+# ============================================================
+# Monitoring
+# ============================================================
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    scrape_interval: 15
+  
+  grafana:
+    enabled: true
+    port: 3000
+    admin_user: "admin"
+    admin_password_env: "GRAFANA_PASSWORD"
+
+# ============================================================
+# Worker / Scheduler
+# ============================================================
+worker:
+  prediction_interval_minutes: 15
+  retrain_interval_hours: 24
+  telegram_bot_token_env: "TELEGRAM_BOT_TOKEN"
+  telegram_chat_id_env: "TELEGRAM_CHAT_ID"
+  health_check_interval_minutes: 5
+
+# ============================================================
+# Retraining Pipeline
+# ============================================================
+retraining:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM UTC
+  lookback_days: 60
+  min_samples: 1000
+  validation_split: 0.2
+  model_registry_path: "./models/registry"
+  champion_metric: "direction_accuracy"
+  challenger_threshold: 0.02  # 2% improvement required
+
+# ============================================================
+# Backtesting
+# ============================================================
+backtest:
+  initial_train_days: 30
+  test_window_days: 7
+  step_days: 1
+  purge_days: 1
+  embargo_days: 0
+  n_splits: 5
+
+# ============================================================
+# Logging
+# ============================================================
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "./logs/btc_predictor.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5

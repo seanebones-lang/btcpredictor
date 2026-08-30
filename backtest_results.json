@@ -1,0 +1,23 @@
+{
+  "results": [],
+  "summary": {
+    "total_windows": 0,
+    "direction_accuracy": 0,
+    "mean_mae": 0,
+    "mean_mape": 0,
+    "interval_coverage": 0,
+    "sharpe_ratio": 0,
+    "max_drawdown": 0,
+    "total_return": 0,
+    "win_rate": 0,
+    "profit_factor": 0
+  },
+  "config": {
+    "initial_train_days": 30,
+    "test_window_days": 7,
+    "step_days": 1,
+    "purge_days": 1,
+    "embargo_days": 0
+  },
+  "timestamp": "2026-08-30T18:59:44.059198"
+}

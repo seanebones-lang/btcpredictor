@@ -1,0 +1,21 @@
+# Modern BTC Predictor Requirements
+tensorflow>=2.16
+scikit-learn>=1.5
+plotly>=5.22
+pandas>=2.2
+numpy>=1.26
+ta>=0.11
+prophet>=1.1
+textblob>=0.18
+requests>=2.32
+jupyter>=1.0
+dash>=2.17
+dash-bootstrap-components>=1.6
+snscrape>=0.7.0.20230622
+python-dotenv>=1.0
+pytest>=8.0
+pytest-asyncio>=0.23
+pytest-cov>=5.0
+black>=24.0
+ruff>=0.6
+mypy>=1.11
