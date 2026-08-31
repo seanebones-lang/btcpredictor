@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC Predictor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+        .header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 1.5rem; font-weight: 600; }
+        .status { display: flex; align-items: center; gap: 1rem; }
+        .status-indicator {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #3fb950;
+        }
+        .status-indicator.disconnected { background: #f85149; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+        }
+        @media (max-width: 1000px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+        .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: #8b949e; }
+        .chart-container { position: relative; height: 500px; }
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .metric {
+            background: #21262d;
+            border-radius: 6px;
+            padding: 1rem;
+        }
+        .metric-label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; }
+        .metric-value { font-size: 1.5rem; font-weight: 600; margin-top: 0.25rem; }
+        .metric-value.up { color: #3fb950; }
+        .metric-value.down { color: #f85149; }
+        .prediction-list { max-height: 400px; overflow-y: auto; }
+        .prediction-item {
+            background: #21262d;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid #30363d;
+        }
+        .prediction-item.up { border-left-color: #3fb950; }
+        .prediction-item.down { border-left-color: #f85149; }
+        .pred-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .pred-time { font-size: 0.75rem; color: #8b949e; }
+        .pred-window { font-size: 0.75rem; font-weight: 500; }
+        .pred-details { display: flex; justify-content: space-between; font-size: 0.875rem; }
+        .pred-price { font-weight: 600; }
+        .pred-confidence { color: #8b949e; }
+        .interval-bar {
+            height: 4px;
+            background: #30363d;
+            border-radius: 2px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+        .interval-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3fb950, #58a6ff);
+            border-radius: 2px;
+        }
+        .legend { display: flex; gap: 1.5rem; margin-top: 1rem; font-size: 0.75rem; }
+        .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+        .legend-color { width: 16px; height: 3px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 BTC Predictor Dashboard</h1>
+        <div class="status">
+            <span id="connection-status">Connecting...</span>
+            <div class="status-indicator" id="status-indicator"></div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="grid">
+            <div class="card">
+                <h2>Price Chart (Prediction vs Actual)</h2>
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #58a6ff;"></div>
+                        <span>Actual Price</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f7816f;"></div>
+                        <span>Predicted</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(88, 166, 255, 0.2);"></div>
+                        <span>Confidence Interval</span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="card">
+                    <h2>Current Metrics</h2>
+                    <div class="metrics">
+                        <div class="metric">
+                            <div class="metric-label">Current Price</div>
+                            <div class="metric-value" id="current-price">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Next Prediction</div>
+                            <div class="metric-value" id="next-prediction">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Expected Change</div>
+                            <div class="metric-value" id="expected-change">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Confidence</div>
+                            <div class="metric-value" id="confidence">--</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Recent Predictions</h2>
+                    <div class="prediction-list" id="prediction-list">
+                        <div style="color: #8b949e; text-align: center; padding: 2rem;">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        const statusEl = document.getElementById('connection-status');
+        const indicatorEl = document.getElementById('status-indicator');
+        const chartEl = document.getElementById('priceChart');
+        let chart = null;
+        
+        ws.onopen = () => {
+            statusEl.textContent = 'Connected';
+            indicatorEl.classList.remove('disconnected');
+        };
+        ws.onclose = () => {
+            statusEl.textContent = 'Disconnected';
+            indicatorEl.classList.add('disconnected');
+            setTimeout(() => window.location.reload(), 5000);
+        };
+        ws.onerror = () => {
+            statusEl.textContent = 'Error';
+            indicatorEl.classList.add('disconnected');
+        };
+        
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'init' || msg.type === 'price' || msg.type === 'prediction') {
+                updateDashboard(msg.data);
+            }
+        };
+        
+        function initChart(data) {
+            const prices = data.prices || [];
+            const labels = prices.map(p => new Date(p.timestamp).toLocaleTimeString());
+            const actual = prices.map(p => p.actual);
+            const predicted = prices.map(p => p.predicted);
+            const lower = prices.map(p => p.ensemble_lower);
+            const upper = prices.map(p => p.ensemble_upper);
+            
+            const ctx = chartEl.getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Actual Price',
+                            data: actual,
+                            borderColor: '#58a6ff',
+                            backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.2,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'Predicted',
+                            data: predicted,
+                            borderColor: '#f7816f',
+                            backgroundColor: 'rgba(247, 129, 111, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.2,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'Upper Bound',
+                            data: upper,
+                            borderColor: 'rgba(88, 166, 255, 0.3)',
+                            backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                            borderWidth: 1,
+                            fill: '-1',
+                            pointRadius: 0,
+                        },
+                        {
+                            label: 'Lower Bound',
+                            data: lower,
+                            borderColor: 'rgba(88, 166, 255, 0.3)',
+                            backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                            borderWidth: 1,
+                            fill: false,
+                            pointRadius: 0,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { backgroundColor: '#21262d', titleColor: '#e6edf3', bodyColor: '#e6edf3' }
+                    },
+                    scales: {
+                        x: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } },
+                        y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e', callback: v => '$' + v.toLocaleString() } }
+                    }
+                }
+            });
+        }
+        
+        function updateChart(data) {
+            if (!chart) return;
+            const prices = data.prices || [];
+            const labels = prices.map(p => new Date(p.timestamp).toLocaleTimeString());
+            const actual = prices.map(p => p.actual);
+            const predicted = prices.map(p => p.predicted);
+            const lower = prices.map(p => p.ensemble_lower);
+            const upper = prices.map(p => p.ensemble_upper);
+            
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = actual;
+            chart.data.datasets[1].data = predicted;
+            chart.data.datasets[2].data = upper;
+            chart.data.datasets[3].data = lower;
+            chart.update('none');
+        }
+        
+        function updateDashboard(data) {
+            if (!chart) {
+                initChart(data);
+            } else {
+                updateChart(data);
+            }
+            
+            // Update metrics
+            if (data.current_price) {
+                document.getElementById('current-price').textContent = '$' + data.current_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+            if (data.latest_prediction) {
+                const p = data.latest_prediction;
+                document.getElementById('next-prediction').textContent = '$' + (p.predicted_price || p.next_price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const change = p.change_pct || 0;
+                const changeEl = document.getElementById('expected-change');
+                changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+                changeEl.className = 'metric-value ' + (change >= 0 ? 'up' : 'down');
+                document.getElementById('confidence').textContent = (p.confidence || 0) + '%';
+            }
+            
+            // Update prediction list
+            if (data.predictions) {
+                const list = document.getElementById('prediction-list');
+                list.innerHTML = data.predictions.slice().reverse().map(p => {
+                    const isUp = (p.direction || '').includes('UP');
+                    const change = p.change_pct || 0;
+                    const interval = p.ensemble_interval || [0, 0];
+                    return `
+                        <div class="prediction-item ${isUp ? 'up' : 'down'}">
+                            <div class="pred-header">
+                                <span class="pred-time">${new Date(p.timestamp).toLocaleTimeString()}</span>
+                                <span class="pred-window">${p.window_start} → ${p.window_end}</span>
+                            </div>
+                            <div class="pred-details">
+                                <span class="pred-price">$${(p.predicted_price || p.next_price || 0).toLocaleString()}</span>
+                                <span class="pred-confidence">${p.confidence || 0}% conf</span>
+                            </div>
+                            <div class="pred-details">
+                                <span style="color: ${isUp ? '#3fb950' : '#f85149'}">${p.direction || ''} ${Math.abs(change).toFixed(2)}%</span>
+                                <span class="pred-confidence">Interval: $${interval[0]?.toLocaleString() || 0} - $${interval[1]?.toLocaleString() || 0}</span>
+                            </div>
+                        </div>
+                    `.join('');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
